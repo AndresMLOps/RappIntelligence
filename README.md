@@ -32,7 +32,7 @@ El bot sirve como una interfaz interactiva donde cualquier usuario puede explora
 ```bash
 uv run python main.py
 ```
-Abre tu navegador web en: **http://localhost:8000** 
+Abre tu navegador web en: **http://localhost:8080** 
 
 - **¿Qué puedes analizar?**
   - **Filtros rápidos:** *¿Cuáles son las 5 zonas con mayor Lead Penetration esta semana?*
