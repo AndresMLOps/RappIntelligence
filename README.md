@@ -10,7 +10,7 @@ RappIntelligence es un sistema impulsado por IA diseñado para democratizar el a
 
 ### 1. Requisitos Previos
 
-1. Asegúrate de tener instalado Python 3.10+ y [uv](https://docs.astral.sh/uv/) (el gestor de dependencias utilizado en el proyecto).
+1. Asegúrate de tener instalado Python 3.11 y [uv](https://docs.astral.sh/uv/) (el gestor de dependencias utilizado en el proyecto).
 2. Clona el repositorio e instala las dependencias:
    ```bash
    uv sync
@@ -57,7 +57,32 @@ uv run python Insights/main.py
 
 ---
 
-## 🏗️ Arquitectura del Proyecto
+- **Bot Principal (`scr/`)**: 
+  - **`api.py`**: Servidor FastAPI local.
+  - **`agent.py`**: Maneja el flujo interactivo de los usuarios con LangGraph. Utiliza nodos específicos (`router`, `semantic_mapper`, `analyst`, `responder`, y `summarizer`). El núcleo analítico usa `create_pandas_dataframe_agent` interconectado con GPT-4o para interpretar datos. 
+  - **Frontend (`static/`)**: Una UI simple en HTML, CSS y JS puro para chat en tiempo real.
+- **Insights Pipeline (`Insights/`)**:
+  - **`tools_rappi.py`**: Aloja lógicas robustas de análisis con métodos como Momentum, Z-score Benchmarking y Riesgo Multivariable cruzando métricas directamente desde DataFrames.
+  - **`main.py`**: Implementa Graph de LangGraph (`generation_node` y `reflection_node`) con Prompting estricto orientado a negocios para forzar al LLM a contar una "historia accionable". Finalmente formatea la salida en Markdown/HTML y PDF mediante bibliotecas estándar.
 
-- **Bot Principal (`scr/`)**: FastAPI (`api.py`) como orquestador del backend, Langgraph agents (`agent.py`) manejando enrutamiento e investigación técnica, y un Frontend en HTML/JS (`static/`).
-- **Insights Pipeline (`Insights/`)**: Lógicas robustas de análisis pandas de Momentum, Z-score Benchmarking y Riesgo Multivariable cruzando métricas (`tools_rappi.py`), que alimentan la generación de contenido narrativo en `main.py`.
+---
+
+## 🔍 Observabilidad (Langfuse)
+
+El proyecto incluye integración profunda con **Langfuse** para ambas secciones (Bot e Insights) de forma que puedas trazar el consumo de tokens, uso de CPU y lógica de toma de decisión del LLM paso a paso. 
+
+Para habilitarlo, necesitas contar con claves de Langfuse válidas y configurarlas en el `.env`:
+
+```env
+# RappIntelligence (Bot)
+LANGFUSE_SECRET_KEY="sk-lf-..."
+LANGFUSE_PUBLIC_KEY="pk-lf-..."
+LANGFUSE_BASE_URL="https://cloud.langfuse.com"
+
+# RappInsights (Insights Pipeline)
+LANGFUSE_INSIGHTS_SECRET_KEY="sk-lf-..."
+LANGFUSE_INSIGHTS_PUBLIC_KEY="pk-lf-..."
+LANGFUSE_INSIGHTS_BASE_URL="https://cloud.langfuse.com"
+```
+
+El Bot inyecta su propio `CallbackHandler` de Langfuse por sesión para registrar las consultas en la interfaz (`scr/observability.py`), mientras que el Pipeline de Insights tiene su propio entorno (separado con el prefijo `_INSIGHTS_`) para registrar la generación masiva de análisis e inferencias (`Insights/main.py`).
