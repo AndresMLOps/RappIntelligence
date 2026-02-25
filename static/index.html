@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RappiBot — Asistente de Datos Rappi</title>
+    <base target="_blank">
+    <style>
+        /* ── Reset & Variables ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --rappi-orange: #FF441F;
+            --rappi-orange-light: #FF6B47;
+            --rappi-orange-dark: #D93000;
+            --rappi-white: #FFFFFF;
+            --rappi-bg: #FFF7F5;
+            --rappi-border: #FFD5CB;
+            --rappi-gray: #6B7280;
+            --rappi-gray-light: #F3F4F6;
+            --rappi-text: #1A1A1A;
+            --shadow-sm: 0 1px 3px rgba(255, 68, 31, 0.1);
+            --shadow-md: 0 4px 16px rgba(255, 68, 31, 0.15);
+            --shadow-lg: 0 8px 32px rgba(255, 68, 31, 0.2);
+            --radius: 16px;
+            --radius-sm: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--rappi-bg);
+            color: var(--rappi-text);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        header {
+            background: var(--rappi-orange);
+            color: white;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 36px;
+            height: 36px;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .header-title h1 {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .header-title p {
+            font-size: 12px;
+            opacity: 0.85;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-reset {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* ── Main layout ── */
+        main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            gap: 0;
+        }
+
+        /* ── Sidebar ── */
+        aside {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--rappi-border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 16px;
+            gap: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        aside h2 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--rappi-orange);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .example-group h3 {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--rappi-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+
+        .example-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: var(--rappi-bg);
+            border: 1px solid var(--rappi-border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 12.5px;
+            color: var(--rappi-text);
+            cursor: pointer;
+            margin-bottom: 6px;
+            line-height: 1.4;
+            transition: all 0.15s;
+        }
+
+        .example-btn:hover {
+            background: var(--rappi-orange);
+            color: white;
+            border-color: var(--rappi-orange);
+            transform: translateX(2px);
+        }
+
+        /* ── Chat area ── */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        /* ── Welcome screen ── */
+        .welcome {
+            margin: auto;
+            text-align: center;
+            padding: 40px 20px;
+            max-width: 480px;
+        }
+
+        .welcome-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+        }
+
+        .welcome h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--rappi-text);
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            color: var(--rappi-gray);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* ── Messages ── */
+        .message {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            animation: fadeIn 0.25s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message.user .avatar {
+            background: var(--rappi-orange);
+            color: white;
+        }
+
+        .message.bot .avatar {
+            background: white;
+            border: 2px solid var(--rappi-orange);
+        }
+
+        .bubble {
+            max-width: 72%;
+            padding: 14px 18px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .message.user .bubble {
+            background: var(--rappi-orange);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .bubble {
+            background: white;
+            color: var(--rappi-text);
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--rappi-border);
+        }
+
+        /* Markdown inside bot bubble */
+        .bubble table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        .bubble th {
+            background: var(--rappi-orange);
+            color: white;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .bubble td {
+            padding: 5px 10px;
+            border-bottom: 1px solid var(--rappi-border);
+        }
+
+        .bubble tr:nth-child(even) td {
+            background: var(--rappi-bg);
+        }
+
+        .bubble code {
+            background: var(--rappi-gray-light);
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+
+        .bubble pre {
+            background: var(--rappi-gray-light);
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .bubble strong {
+            color: var(--rappi-orange-dark);
+        }
+
+        .bubble ul,
+        .bubble ol {
+            padding-left: 20px;
+            margin: 6px 0;
+        }
+
+        .bubble h2,
+        .bubble h3 {
+            color: var(--rappi-orange-dark);
+            margin: 10px 0 4px;
+        }
+
+        /* ── Status bubble (mientras procesa) ── */
+        .status-bubble {
+            background: white;
+            border: 1px solid var(--rappi-border);
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-sm);
+            font-size: 13px;
+            color: var(--rappi-gray);
+            max-width: 72%;
+            transition: all 0.2s;
+        }
+
+        .status-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--rappi-border);
+            border-top-color: var(--rappi-orange);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Cursor parpadeante al streamear */
+        .stream-cursor::after {
+            content: '▋';
+            animation: blink 0.7s step-end infinite;
+            color: var(--rappi-orange);
+            font-size: 13px;
+            margin-left: 1px;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* ── Typing indicator (fallback) ── */
+        .typing-bubble {
+            background: white;
+            border: 1px solid var(--rappi-border);
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            padding: 14px 18px;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* ── Botón de gráfica ── */
+        .chart-open-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 10px 20px;
+            background: var(--rappi-orange);
+            color: white !important;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chart-open-btn:hover {
+            background: var(--rappi-orange-dark);
+            transform: translateY(-1px);
+            text-decoration: none;
+            color: white !important;
+        }
+
+        .chart-open-btn:active {
+            transform: scale(0.97);
+        }
+
+        .typing-dot {
+            width: 7px;
+            height: 7px;
+            background: var(--rappi-orange);
+            border-radius: 50%;
+            animation: bounce 1.2s ease infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            60%,
+            100% {
+                transform: translateY(0);
+            }
+
+            30% {
+                transform: translateY(-6px);
+            }
+        }
+
+        /* ── Input area ── */
+        .input-area {
+            border-top: 1px solid var(--rappi-border);
+            background: white;
+            padding: 16px 24px;
+            flex-shrink: 0;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        #user-input {
+            flex: 1;
+            border: 1.5px solid var(--rappi-border);
+            border-radius: 24px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            max-height: 120px;
+            overflow-y: auto;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            line-height: 1.5;
+        }
+
+        #user-input:focus {
+            border-color: var(--rappi-orange);
+            box-shadow: 0 0 0 3px rgba(255, 68, 31, 0.12);
+        }
+
+        #user-input::placeholder {
+            color: #B0B8C1;
+        }
+
+        #send-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: var(--rappi-orange);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: var(--shadow-md);
+        }
+
+        #send-btn:hover {
+            background: var(--rappi-orange-dark);
+        }
+
+        #send-btn:active {
+            transform: scale(0.95);
+        }
+
+        #send-btn:disabled {
+            background: #CCC;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #send-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .input-hint {
+            text-align: center;
+            font-size: 11px;
+            color: #B0B8C1;
+            margin-top: 8px;
+        }
+
+        /* ── Status toast ── */
+        #status-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #1A1A2E;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #status-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Responsivo ── */
+        @media (max-width: 768px) {
+            aside {
+                display: none;
+            }
+
+            .bubble {
+                max-width: 88%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Header ── -->
+    <header>
+        <div class="header-left">
+            <div class="logo">🤖</div>
+            <div class="header-title">
+                <h1>RappiBot</h1>
+                <p>Asistente de Datos Rappi</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-reset" onclick="resetConversation()">🔄 Nueva conversación</button>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <main>
+
+        <!-- Sidebar de ejemplos -->
+        <aside>
+            <h2>💡 Ejemplos</h2>
+
+            <div class="example-group">
+                <h3>Filtrado</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Cuáles son las 5 zonas con mayor % Lead Penetration esta semana?
+                </button>
+                <button class="example-btn" onclick="sendExample(this)">
+                    Zonas de Colombia con Perfect Orders menor al 70%
+                </button>
+            </div>
+
+            <div class="example-group">
+                <h3>Comparaciones</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    Compara Perfect Order entre zonas Wealthy y Non Wealthy en México
+                </button>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Cuál es la diferencia de Gross Profit UE entre High Priority y Not Prioritized?
+                </button>
+            </div>
+
+            <div class="example-group">
+                <h3>Tendencias</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    Muestra la evolución de Gross Profit UE en Chapinero las últimas 8 semanas
+                </button>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Qué zonas han caído más en Perfect Orders en las últimas 4 semanas?
+                </button>
+            </div>
+
+            <div class="example-group">
+                <h3>Agregaciones</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Cuál es el promedio de Lead Penetration por país?
+                </button>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Cuántas órdenes tuvo cada país esta semana?
+                </button>
+            </div>
+
+            <div class="example-group">
+                <h3>Análisis avanzado</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Qué zonas tienen alto Lead Penetration pero bajo Perfect Order?
+                </button>
+                <button class="example-btn" onclick="sendExample(this)">
+                    ¿Cuáles son las zonas que más crecen en órdenes en las últimas 5 semanas?
+                </button>
+            </div>
+
+            <div class="example-group">
+                <h3>Visualizaciones</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    Graficame el Lead Penetration % por zona en Colombia
+                </button>
+                <button class="example-btn" onclick="sendExample(this)">
+                    Visualiza la evolución de Perfect Orders en las últimas semanas
+                </button>
+            </div>
+
+            <div class="example-group">
+                <h3>Exportación</h3>
+                <button class="example-btn" onclick="sendExample(this)">
+                    Exporta a CSV las 10 zonas con mayor Gross Profit UE
+                </button>
+            </div>
+        </aside>
+
+        <!-- Chat -->
+        <div class="chat-container">
+            <div id="messages">
+                <div class="welcome" id="welcome-screen">
+                    <div class="welcome-icon">🤖</div>
+                    <h2>¡Hola! Soy RappiBot</h2>
+                    <p>
+                        Tu asistente de datos de Rappi. Puedo analizar métricas operacionales,
+                        comparar zonas, detectar tendencias, generar gráficas y exportar resultados.<br><br>
+                        Escribe tu pregunta o elige un ejemplo del panel izquierdo.
+                    </p>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-row">
+                    <textarea id="user-input" rows="1"
+                        placeholder="Pregúntame sobre métricas, zonas, tendencias..."></textarea>
+                    <button id="send-btn" onclick="sendMessage()" title="Enviar">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="input-hint">Enter para enviar · Shift+Enter para nueva línea</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="status-toast"></div>
+
+    <!-- ── Scripts ── -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const input = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const toast = document.getElementById('status-toast');
+
+        // FIX: Genera un ID de sesión único por pestaña del navegador.
+        // Esto garantiza que CADA pestaña/usuario tenga su propia memoria
+        // y no contamine la conversación de otro usuario.
+        let sessionId = crypto.randomUUID();
+
+        let isLoading = false;
+
+        // Auto-resize textarea
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+
+        // Enter = send, Shift+Enter = new line
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!isLoading) sendMessage();
+            }
+        });
+
+        function showToast(msg, duration = 2500) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        function scrollToBottom() {
+            messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior: 'smooth' });
+        }
+
+        function removeWelcome() {
+            const w = document.getElementById('welcome-screen');
+            if (w) w.remove();
+        }
+
+        /**
+         * Renderiza el contenido Markdown del bot en el elemento destino.
+         * La gráfica (si la hay) se añade por separado al recibir el evento SSE 'chart'.
+         */
+        function renderBotContent(text, targetEl) {
+            targetEl.innerHTML = marked.parse(text);
+        }
+
+        function addMessage(text, role) {
+            removeWelcome();
+            const wrapper = document.createElement('div');
+            wrapper.className = `message ${role}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+
+            if (role === 'bot') {
+                renderBotContent(text, bubble);
+            } else {
+                bubble.textContent = text;
+            }
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(bubble);
+            messagesDiv.appendChild(wrapper);
+            scrollToBottom();
+            return wrapper;
+        }
+
+        /**
+         * Crea una burbuja de status (spinner + texto).
+         * Devuelve { wrapper, textEl } para actualizarla.
+         */
+        function addStatusBubble(initialText = '🔀 Iniciando...') {
+            removeWelcome();
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message bot';
+            wrapper.id = 'bot-processing';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = '🤖';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'status-bubble';
+
+            const spinner = document.createElement('div');
+            spinner.className = 'status-spinner';
+
+            const textEl = document.createElement('span');
+            textEl.textContent = initialText;
+
+            bubble.appendChild(spinner);
+            bubble.appendChild(textEl);
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(bubble);
+            messagesDiv.appendChild(wrapper);
+            scrollToBottom();
+
+            return { wrapper, textEl };
+        }
+
+        /**
+         * Convierte la burbuja de status en una burbuja de streaming normal.
+         * Devuelve la burbuja de contenido para acumular tokens.
+         */
+        function upgradeToStreamBubble(statusWrapper) {
+            const bubble = statusWrapper.querySelector('.status-bubble');
+            // Reemplaza la status-bubble por una bubble normal vacía
+            const newBubble = document.createElement('div');
+            newBubble.className = 'bubble stream-cursor';
+            newBubble.innerHTML = '';
+            statusWrapper.replaceChild(newBubble, bubble);
+            return newBubble;
+        }
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text || isLoading) return;
+
+            isLoading = true;
+            sendBtn.disabled = true;
+            input.value = '';
+            input.style.height = 'auto';
+
+            addMessage(text, 'user');
+
+            // Burbuja de status inicial
+            const { wrapper: processingWrapper, textEl: statusTextEl } = addStatusBubble('🔀 Procesando...');
+
+            let streamBubble = null;
+            let accumulatedText = '';
+            let hasStartedStreaming = false;
+
+            try {
+                const res = await fetch('/chat/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, session_id: sessionId }),
+                });
+
+                if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Procesar líneas completas (newline-delimited JSON)
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Guardar línea incompleta
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+
+                        let event;
+                        try {
+                            event = JSON.parse(trimmed);
+                        } catch {
+                            continue;
+                        }
+
+                        if (event.type === 'status') {
+                            if (!hasStartedStreaming) {
+                                // Actualizar texto del spinner
+                                statusTextEl.textContent = event.text;
+                                scrollToBottom();
+                            }
+
+                        } else if (event.type === 'token') {
+                            if (!hasStartedStreaming) {
+                                hasStartedStreaming = true;
+                                streamBubble = upgradeToStreamBubble(processingWrapper);
+                            }
+                            accumulatedText += event.text;
+                            streamBubble.innerHTML = marked.parse(accumulatedText);
+                            scrollToBottom();
+
+                        } else if (event.type === 'chart') {
+                            // La gráfica llega como HTML completo autosuficiente.
+                            // Creamos un Blob URL para abrirla en nueva pestaña.
+                            const blob = new Blob([event.html], { type: 'text/html' });
+                            const blobUrl = URL.createObjectURL(blob);
+
+                            const targetBubble = streamBubble || (() => {
+                                // Si no hubo tokens (poco común), crear burbuja nueva
+                                const w = addMessage('', 'bot');
+                                return w.querySelector('.bubble');
+                            })();
+
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.className = 'chart-open-btn';
+                            link.textContent = '📊 Ver Gráfica en Nueva Pestaña';
+                            targetBubble.appendChild(link);
+                            scrollToBottom();
+
+                        } else if (event.type === 'done') {
+                            if (streamBubble) {
+                                streamBubble.classList.remove('stream-cursor');
+                                renderBotContent(accumulatedText, streamBubble);
+                            } else if (!document.querySelector('.chart-open-btn')) {
+                                // No hubo tokens ni chart: quitar spinner silenciosamente
+                                processingWrapper.remove();
+                            }
+                            scrollToBottom();
+
+                        } else if (event.type === 'error') {
+                            processingWrapper.remove();
+                            addMessage(event.text, 'bot');
+                        }
+                    }
+                }
+
+            } catch (err) {
+                processingWrapper.remove();
+                addMessage(`❌ Error al conectar con el servidor: ${err.message}`, 'bot');
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        async function resetConversation() {
+            try {
+                // El servidor devuelve un nuevo thread_id; lo adoptamos como sessionId
+                // para que esta pestaña arranque con memoria limpia.
+                const res = await fetch('/reset', { method: 'POST' });
+                const data = await res.json();
+                if (data.thread_id) sessionId = data.thread_id;
+                messagesDiv.innerHTML = `
+          <div class="welcome" id="welcome-screen">
+            <div class="welcome-icon">🤖</div>
+            <h2>¡Conversación reiniciada!</h2>
+            <p>Comienza con una nueva pregunta.</p>
+          </div>
+        `;
+                showToast('✅ Nueva conversación iniciada');
+            } catch (err) {
+                showToast('❌ Error al reiniciar');
+            }
+        }
+
+        function sendExample(btn) {
+            input.value = btn.textContent.trim();
+            input.dispatchEvent(new Event('input'));
+            sendMessage();
+        }
+    </script>
+</body>
+
+</html>
