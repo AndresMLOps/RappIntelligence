@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="data/RappiBot.png" alt="RappIntelligence Bot" width="600" />
+  <img src="data/RappiBot.png" alt="RappIntelligence Bot" width="1020" />
 </div>
 
 # 🤖 RappIntelligence
