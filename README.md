@@ -55,17 +55,40 @@ uv run python Insights/main.py
   - Podrás encontrar el resultado en formato `Reporte_Estrategico_Rappi.md` (Markdown) y `Reporte_Estrategico_Rappi.pdf` (PDF) dentro de la carpeta `Insights/`.
   - *Nota: Para la generación y el renderizado correcto del archivo PDF, debes tener `wkhtmltopdf` instalado en tu sistema y referenciado en el proyecto.*
 
+## 🏗️ Arquitectura del Proyecto
+
+El proyecto está dividido en dos grandes módulos, cada uno respaldado por agentes y grafos de tareas con LangGraph:
+
+### 1. Bot Principal (RappIntelligence)
+
+<div align="center">
+  <img src="data/RappIntelligence.png" alt="Arquitectura del Bot Interactivo" width="800" />
+</div>
+
+El flujo de conversación en `scr/agent.py` sigue un diseño guiado por estados (`StateGraph`) estructurado en 5 nodos principales:
+
+1. **`router_node`**: Toma la pregunta del usuario y usa un LLM (gpt-4o-mini) para clasificar si es una consulta de datos (`data`) o una consulta de conocimiento general (`general`).
+2. **`semantic_mapper_node`**: Si es de datos, mapea en formato JSON los nombres de columnas, filtros, agrupaciones y métricas que necesita evaluar, basándose en el esquema de los dataframes.
+3. **`pandas_analyst_node`**: Ejecuta el grueso del trabajo duro. Aquí un agente ReAct (`create_pandas_dataframe_agent` impulsado por gpt-4o) toma la instrucción enriquecida del mapper, la transforma en sentencias seguras de Python, extrae y agrupa la información de los DFs (`df_metrics.csv` y `df_orders.csv`) y elabora un análisis en base de los resultados.
+4. **`responder_node`**: Modela el texto del análisis directo a un tono empresarial ("VP of SP&A") para que la respuesta final al usuario sea comprensible, ejecutiva, y orientada a los negocios.
+5. **`summarizer_node`**: Si la conversación supera los 10 turnos, este nodo comprime el historial de mensajes de fondo, manteniéndola rápida y ahorrando consumo de tokens continuos.
+
 ---
 
-- **Bot Principal (`scr/`)**: 
-  - **`api.py`**: Servidor FastAPI local.
-  - **`agent.py`**: Maneja el flujo interactivo de los usuarios con LangGraph. Utiliza nodos específicos (`router`, `semantic_mapper`, `analyst`, `responder`, y `summarizer`). El núcleo analítico usa `create_pandas_dataframe_agent` interconectado con GPT-4o para interpretar datos. 
-  - **Frontend (`static/`)**: Una UI simple en HTML, CSS y JS puro para chat en tiempo real.
-- **Insights Pipeline (`Insights/`)**:
-  - **`tools_rappi.py`**: Aloja lógicas robustas de análisis con métodos como Momentum, Z-score Benchmarking y Riesgo Multivariable cruzando métricas directamente desde DataFrames.
-  - **`main.py`**: Implementa Graph de LangGraph (`generation_node` y `reflection_node`) con Prompting estricto orientado a negocios para forzar al LLM a contar una "historia accionable". Finalmente formatea la salida en Markdown/HTML y PDF mediante bibliotecas estándar.
+### 2. Generador Ejecutivo (RappInsights Pipeline)
 
----
+<div align="center">
+  <img src="data/RappInsights.png" alt="Arquitectura del Pipeline de Insights" width="800" />
+</div>
+
+Este módulo no espera preguntas, su objetivo es analizar activamente la base de datos de inicio a fin para producir un reporte gerencial. Su ejecución en `Insights/main.py` y `Insights/tools_rappi.py` sigue un diseño ReAct cerrado con auditoría (Reflexión):
+
+1. **Despliegue de Herramientas (15 Tools)**: Se inyectan 15 herramientas de análisis al LLM (`gpt-4o`, 16K tokens). Entre ellas: Riesgo Sistémico (Multivariable), Burn ROI, Cuellos de Botella del Funnel, Anomalías WoW filtradas estadísticamente, y Brechas de Monetización.
+2. **`generation_node`**: El "Director de Estrategia" del agente invoca estas herramientas. Revisa toda la data en simultánea y construye una versión en bruto del informe, donde los problemas se agrupan temáticamente (no por país o ciudad), conectando métricas causalmente (e.j "Cae el revenue, el síntoma raíz es CVR Add to Cart").
+3. **`reflection_node`**: Cumple la fase de auditoría. Se invoca bajo el rol de un "VP de Estrategia", que califica rigurosamente el informe recién emitido en 7 criterios (como verificar que no haya tablas consecutivas, que los hallazgos buenos y malos estén en el mismo párrafo para mejor contraste, y que haya llamadas a la acción reales). 
+4. **Retroalimentación y Salida**: Si el reporte es defectuoso, se manda `reflect` de regreso como crítica al ciclo generador. Lo hace un máximo de 3 veces hasta responder "APROBADO". En ese momento, se convierte primero en formato `Markdown`, luego se parsea con estilos empresariales `CSS` y WKHTMLTOPDF lo exporta en `Reporte_Estrategico_Rappi.pdf`.
+
+
 
 ## 🔍 Observabilidad (Langfuse)
 
