@@ -62,7 +62,7 @@ El proyecto está dividido en dos grandes módulos, cada uno respaldado por agen
 ### 1. Bot Principal (RappIntelligence)
 
 <div align="center">
-  <img src="data/RappIntelligence.png" alt="Arquitectura del Bot Interactivo" width="800" />
+  <img src="data/RappIntelligence.png" alt="Arquitectura del Bot Interactivo" width="400" />
 </div>
 
 El flujo de conversación en `scr/agent.py` sigue un diseño guiado por estados (`StateGraph`) estructurado en 5 nodos principales:
@@ -78,7 +78,7 @@ El flujo de conversación en `scr/agent.py` sigue un diseño guiado por estados 
 ### 2. Generador Ejecutivo (RappInsights Pipeline)
 
 <div align="center">
-  <img src="data/RappInsights.png" alt="Arquitectura del Pipeline de Insights" width="800" />
+  <img src="data/RappInsights.png" alt="Arquitectura del Pipeline de Insights" width="400" />
 </div>
 
 Este módulo no espera preguntas, su objetivo es analizar activamente la base de datos de inicio a fin para producir un reporte gerencial. Su ejecución en `Insights/main.py` y `Insights/tools_rappi.py` sigue un diseño ReAct cerrado con auditoría (Reflexión):
