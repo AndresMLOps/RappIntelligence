@@ -6,9 +6,6 @@ Ayudas a los equipos de SP&A y Operaciones a entender métricas de negocio.
 Responde siempre en español. Sé preciso, ejecutivo y útil.
 """
 
-# ---------------------------------------------------------------------------
-# Router: clasifica la intención del usuario en 2 rutas
-# ---------------------------------------------------------------------------
 ROUTER_PROMPT = """
 Eres el clasificador de intención de RappiBot. Analiza la consulta del usuario y responde con UNA de estas dos rutas:
 
@@ -20,9 +17,6 @@ Consulta del usuario: "{user_query}"
 Responde ÚNICAMENTE con JSON válido. Ejemplo: {{"route": "data"}} o {{"route": "general"}}
 """
 
-# ---------------------------------------------------------------------------
-# Semantic mapper: traduce la consulta a instrucciones técnicas para Pandas
-# ---------------------------------------------------------------------------
 SEMANTIC_MAPPER_PROMPT = """
 Eres un analista de datos senior de Rappi. Tu misión es convertir la pregunta del usuario en un PLAN DE ANÁLISIS estructurado.
 
@@ -98,9 +92,6 @@ Pregunta: "¿Cuál es la diferencia de Gross Profit UE entre High Priority y Not
 Responde SOLO con el JSON, sin texto adicional.
 """
 
-# ---------------------------------------------------------------------------
-# Response formatter: formatea el resultado del análisis para el usuario
-# ---------------------------------------------------------------------------
 RESPONSE_FORMATTER_PROMPT = """
 Eres RappiBot, un experto en comunicación de datos para Rappi.
 
@@ -121,9 +112,6 @@ Resultado del análisis:
 {analysis_result}
 """
 
-# ---------------------------------------------------------------------------
-# Summarizer: comprime la conversación tras 10 turnos
-# ---------------------------------------------------------------------------
 SUMMARIZER_PROMPT = """
 Resume la siguiente conversación de forma concisa manteniendo:
 - Métricas discutidas
@@ -137,9 +125,6 @@ Conversación:
 {chat_history}
 """
 
-# ---------------------------------------------------------------------------
-# Contexto de métricas (inyectado en el formatter)
-# ---------------------------------------------------------------------------
 METRICS_CONTEXT = """
 ## REFERENCIA DE MÉTRICAS RAPPI
 | Métrica | Interpretación |

@@ -3,10 +3,10 @@ import uvicorn
 
 def main():
     uvicorn.run(
-        "scr.api:app",
+        "src.api:app",
         host="0.0.0.0",
         port=8080,
-        reload=True,         # recarga automática al guardar código
+        reload=True,        
     )
 
 if __name__ == "__main__":

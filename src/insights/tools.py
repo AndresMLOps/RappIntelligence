@@ -6,16 +6,9 @@ from langchain_core.tools import tool
 
 warnings.filterwarnings("ignore")
 
-_base = os.path.dirname(os.path.abspath(__file__))
-_pm = os.path.join(_base, "data", "df_metrics.csv")
-_po = os.path.join(_base, "data", "df_orders.csv")
-if not os.path.exists(_pm):
-    _pm = os.path.join(_base, "..", "data", "df_metrics.csv")
-    _po = os.path.join(_base, "..", "data", "df_orders.csv")
-
 try:
-    df_metrics = pd.read_csv(_pm)
-    df_orders  = pd.read_csv(_po)
+    df_metrics = pd.read_csv("../data/df_metrics.csv")
+    df_orders  = pd.read_csv("../data/df_orders.csv")
 
     if "L0W_ROLL" in df_metrics.columns:
         L0, L1, L2, L3 = "L0W_ROLL", "L1W_ROLL", "L2W_ROLL", "L3W_ROLL"
@@ -264,10 +257,9 @@ def get_momentum_analysis() -> str:
     if "ACCEL" not in df.columns or df["ACCEL"].isna().all():
         return "## ⚡ Momentum\n\nDatos insuficientes para calcular aceleración.\n"
 
-    # Deteriorating AND accelerating (ACCEL * POL < 0 means getting worse faster)
     acc = df[df["DETERI"] & df["ACCEL"].notna()].copy()
-    acc["ACCEL_SIGNED"] = acc["ACCEL"] * acc["POL"]   # negative = accelerating deterioration
-    acc = acc[acc["ACCEL_SIGNED"] < -0.01]             # only meaningful acceleration
+    acc["ACCEL_SIGNED"] = acc["ACCEL"] * acc["POL"]
+    acc = acc[acc["ACCEL_SIGNED"] < -0.01]
 
     if acc.empty:
         return "## ⚡ Momentum\n\nSin zonas con deterioro acelerando esta semana.\n"
@@ -311,7 +303,6 @@ def get_momentum_analysis() -> str:
 
 
 
-# What each metric means for the business — used to generate auto-interpretation
 METRIC_BUSINESS_MEANING = {
     "% PRO Users Who Breakeven": "Usuarios con suscripción Pro cuyo valor generado para la empresa (a través de compras, comisiones, etc.) ha cubierto el costo total de su membresía / Total de usuarios suscripción Pro",
     "% Restaurants Sessions With Optimal Assortment": "Sesiones con un mínimo de 40 restaurantes/ Total de sesiones",
@@ -347,7 +338,6 @@ def get_ecosystem_health() -> str:
     ord_total = df.drop_duplicates(["COUNTRY","CITY","ZONE"])["ORDERS_L0W"].sum()
     n_det = int(df["DETERI"].sum()); n_imp = int((~df["DETERI"] & (df["WOW"] > 0.01)).sum())
 
-    # Per-metric: # zones deteriorating, # improving, avg signed WoW
     metric_stats = (df.groupby("METRIC")
                     .apply(lambda g: pd.Series({
                         "zones_det": int(g["DETERI"].sum()),
@@ -357,12 +347,9 @@ def get_ecosystem_health() -> str:
                     }))
                     .reset_index())
 
-    # Top 3 worst metrics (most zones deteriorating, with meaningful WoW)
     top_det = (metric_stats[metric_stats["zones_det"] > 0]
                .sort_values(["zones_det", "avg_signed_wow"])
                .head(6))
-
-    # Top 3 best metrics (most zones improving)
     top_imp = (metric_stats[metric_stats["zones_imp"] > 0]
                .sort_values("zones_imp", ascending=False)
                .head(6))
@@ -375,7 +362,6 @@ def get_ecosystem_health() -> str:
         f"{n_imp:,} mejorando ({n_imp/N*100:.1f}%)\n"
     )
 
-    # Build metric story rows (deteriorating)
     det_rows = "| Métrica | Zonas Afectadas | Δ WoW Promedio | Definición |\n"
     det_rows += "|---------|:--------------:|:--------------:|------------|\n"
     for _, r in top_det.iterrows():
@@ -383,7 +369,6 @@ def get_ecosystem_health() -> str:
         det_rows += (f"| {r['METRIC']} | {int(r['zones_det'])} | {r['avg_signed_wow']:+.2f}% "
                      f"| {meaning} |\n")
 
-    # Build metric story rows (improving)
     imp_rows = "| Métrica | Zonas Mejorando | Δ WoW Promedio | Definición |\n"
     imp_rows += "|---------|:--------------:|:--------------:|------------|\n"
     for _, r in top_imp.iterrows():
@@ -437,7 +422,6 @@ def get_country_summary() -> str:
 
     rows.sort(key=lambda x: float(x[7].rstrip('%')))
 
-    # Key fact: worst country
     worst_c = rows[0][1]; worst_h = rows[0][7]
     best_c  = rows[-1][1]; best_h  = rows[-1][7]
     total_anom = sum(r[3] for r in rows)
@@ -537,7 +521,6 @@ def get_critical_anomalies(threshold: float = 0.10, top_n: int = 15) -> str:
     if "WOW" not in df.columns:
         return "Error."
 
-    # ── Volume Threshold: solo zonas con ORDERS L1W > P25 de su ciudad ──
     city_p25 = df.groupby("CITY")["ORDERS_L1W"].transform(lambda x: x.quantile(0.25)) if "ORDERS_L1W" in df.columns else df.groupby("CITY")["ORDERS_L0W"].transform(lambda x: x.quantile(0.25))
     df = df[df["ORDERS_L1W"] >= city_p25] if "ORDERS_L1W" in df.columns else df[df["ORDERS_L0W"] >= city_p25]
 
@@ -604,8 +587,6 @@ def get_worrisome_trends(top_n: int = 15) -> str:
     tr = df[cond_pos | cond_neg].copy()
     tr["TOTAL_DETERI"] = ((tr[L0] - tr[L3]) / tr[L3].abs()).abs()
 
-    # ── Significance Filter: delta acumulado > 1σ de esa métrica para esa zona históricamente ──
-    # Approximated by the VOLATILITY standard deviation over the available weeks in the zone.
     week_cols_here = [c for c in ["L8W","L7W","L6W","L5W","L4W","L3W","L2W","L1W","L0W"] if c in tr.columns]
     tr["METRIC_STD"] = tr[week_cols_here].std(axis=1) if week_cols_here else 0
     tr["ABS_DELTA"] = (tr[L0] - tr[L3]).abs()
@@ -670,12 +651,11 @@ def get_multivariate_risk_zones() -> str:
         return "Error: datos no disponibles."
     df = _prep()
 
-    # Compute country-level quantile for each metric
     df["Q25"] = df.groupby(["COUNTRY","METRIC"])[L0].transform(lambda x: x.quantile(0.25))
     df["Q75"] = df.groupby(["COUNTRY","METRIC"])[L0].transform(lambda x: x.quantile(0.75))
     df["IN_DANGER"] = (
-        ((df["POL"]==1)  & (df[L0] <= df["Q25"])) |   # positive metric in bottom quartile
-        ((df["POL"]==-1) & (df[L0] >= df["Q75"]))     # negative metric in top quartile
+        ((df["POL"]==1)  & (df[L0] <= df["Q25"])) |   
+        ((df["POL"]==-1) & (df[L0] >= df["Q75"]))     
     )
 
     all_risk_rows = []
@@ -691,7 +671,6 @@ def get_multivariate_risk_zones() -> str:
         if zone_danger_count.empty:
             continue
 
-        # Add orders
         ord_df = df.drop_duplicates(["COUNTRY","CITY","ZONE"])[["COUNTRY","CITY","ZONE","ORDERS_L0W"]]
         zone_danger_count = zone_danger_count.merge(ord_df, on=["COUNTRY","CITY","ZONE"], how="left")
         zone_danger_count = zone_danger_count.sort_values(["N_RIESGO","ORDERS_L0W"], ascending=[False,False]).head(5)
@@ -766,7 +745,6 @@ def get_correlations_insights() -> str:
             seen_w.add(base)
             clean_weeks.append(c)
             
-    # Unpivot to have T dimension
     melted = df_metrics.melt(id_vars=["COUNTRY","CITY","ZONE","METRIC"], 
                              value_vars=clean_weeks,
                              var_name="WEEK", value_name="VALUE")
@@ -776,7 +754,6 @@ def get_correlations_insights() -> str:
     pivot_tz = melted.pivot_table(index=["COUNTRY","CITY","ZONE","T"], 
                                   columns="METRIC", values="VALUE").reset_index()
 
-    # ── Contemporaneous correlations (across 8 weeks, all zones) ──
     corr = pivot_tz.drop(columns=["COUNTRY","CITY","ZONE","T"]).corr()
     corr.index.name   = "MetA"
     corr.columns.name = "MetB"
@@ -808,7 +785,6 @@ def get_correlations_insights() -> str:
             "Mejor surtido → más conversión en tienda.",
     }
 
-    # ── Time-lagged correlations (1-2 week lag) ──
     LAG_PAIRS = [
         ("% Restaurants Sessions With Optimal Assortment", "Restaurants SS > ATC CVR", "Assortment bajo en L2W impacta conversión en L0W"),
         ("% Restaurants Sessions With Optimal Assortment", "Non-Pro PTC > OP", "Bajo surtido rezaga la conversión final del funnel"),
@@ -822,13 +798,10 @@ def get_correlations_insights() -> str:
     pivot_tz_sorted = pivot_tz.sort_values(["COUNTRY","CITY","ZONE","T"])
 
     for met_lead, met_lag, description in LAG_PAIRS:
-        # Note: "Orders" is not directly in df_metrics, but wait - Orders is in df_orders!
-        # If met_lag is not in pivot_tz, we skip it unless we merge it. Let's skip safely.
         if met_lead not in pivot_tz_sorted.columns or met_lag not in pivot_tz_sorted.columns: 
             continue
             
         for lag in [1, 2]:
-            # met_lead Shifted by -lag -> we pull T=2 value into T=0 row
             lead_shifted = pivot_tz_sorted.groupby(["COUNTRY","CITY","ZONE"])[met_lead].shift(-lag)
             r_val = lead_shifted.corr(pivot_tz_sorted[met_lag])
             if abs(r_val) > 0.35:
@@ -839,7 +812,6 @@ def get_correlations_insights() -> str:
                 })
                 break
 
-    # Build output
     n_str = len(strong)
     top_pair = (f"{strong.iloc[0]['Métrica A']} ↔ {strong.iloc[0]['Métrica B']}"
                 f" (r={strong.iloc[0]['Correlación']:.2f})") if not strong.empty else "N/A"
@@ -895,16 +867,13 @@ def get_benchmarking_insights() -> str:
         if c not in df.columns:
             return f"Error: columna '{c}' no encontrada."
 
-    # Z-score within cluster
     grp = df.groupby(GROUP_COLS + ["METRIC"])[L0]
     df["GRP_MEAN"] = grp.transform("mean")
     df["GRP_STD"]  = grp.transform("std")
     df["GRP_N"]    = grp.transform("count")
     df["Z_SCORE"]  = ((df[L0] - df["GRP_MEAN"]) / df["GRP_STD"].replace(0, np.nan))
-    # For negative-polarity metrics, invert Z so positive Z = bad
     df["Z_SIGNED"] = df["Z_SCORE"] * df["POL"]
 
-    # Outliers: Z < -1.5 (significantly below their peer group)
     outliers = df[(df["Z_SIGNED"] < -1.5) & (df["GRP_N"] >= 3)].copy()
     outliers["Z_ABS"] = outliers["Z_SIGNED"].abs()
     outliers = outliers.sort_values(["ORDERS_L0W", "Z_ABS"], ascending=[False, False]).head(20)
@@ -952,10 +921,8 @@ def get_opportunities_insights() -> str:
         return "Error: datos no disponibles."
     df = _prep()
 
-    # Percentile within country (global reference)
     df["PTILE"] = df.groupby(["COUNTRY", "METRIC"])[L0].transform(lambda x: x.rank(pct=True) * 100)
 
-    # Segment median: same country + same ZONE_TYPE (Wealthy vs Non Wealthy) — fairer benchmark
     seg_medians = (
         df.groupby(["COUNTRY", "ZONE_TYPE", "METRIC"])[L0]
         .median()
@@ -964,11 +931,9 @@ def get_opportunities_insights() -> str:
     )
     df = df.merge(seg_medians, on=["COUNTRY", "ZONE_TYPE", "METRIC"], how="left")
 
-    # Also compute country-wide median for reference
     nat_medians = df.groupby(["COUNTRY", "METRIC"])[L0].median().rename("NAT_MEDIAN").reset_index()
     df = df.merge(nat_medians, on=["COUNTRY", "METRIC"], how="left")
 
-    # Filter to priority zones only
     pri = df["ZONE_PRIORITIZATION"].str.contains("High Priority|Prioritized", case=False, na=False)
     sub = df[pri].copy()
     if sub.empty:
@@ -978,7 +943,6 @@ def get_opportunities_insights() -> str:
     over  = ((sub["POL"] == -1) & (sub["PTILE"] > 60))
     opp = sub[under | over].copy()
 
-    # Gap vs segment median (more meaningful than national median)
     opp["SEG_GAP"] = (opp["SEG_MEDIAN"] - opp[L0]) * opp["POL"]
     opp["NAT_GAP"] = (opp["NAT_MEDIAN"] - opp[L0]) * opp["POL"]
     opp = opp.sort_values(["ORDERS_L0W", "SEG_GAP"], ascending=[False, False]).head(20)

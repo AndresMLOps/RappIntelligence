@@ -1,4 +1,4 @@
-# scr/agent.py
+# src/bot/agent.py
 import json
 import uuid
 from pathlib import Path
@@ -13,7 +13,7 @@ from langgraph.graph import StateGraph, END, START
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.message import add_messages
 
-from scr.prompts import (
+from src.bot.prompts import (
     SYSTEM_PROMPT,
     ROUTER_PROMPT,
     SEMANTIC_MAPPER_PROMPT,
@@ -21,12 +21,12 @@ from scr.prompts import (
     SUMMARIZER_PROMPT,
     METRICS_CONTEXT,
 )
-from scr.tools import get_data_schema
-from scr.observability import get_langfuse_handler
+from src.bot.tools import get_data_schema
+from src.core.observability import get_langfuse_handler
 
 load_dotenv()
 
-ROOT = Path(__file__).parent.parent.resolve()
+ROOT = Path(__file__).parent.parent.parent.resolve()
 DATA_DIR = ROOT / "data"
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, streaming=True)
@@ -37,20 +37,12 @@ _DF_METRICS = pd.read_csv(DATA_DIR / "df_metrics.csv")
 _DF_ORDERS  = pd.read_csv(DATA_DIR / "df_orders.csv")
 
 
-# ─────────────────────────────────────────────────────────────
-# State
-# ─────────────────────────────────────────────────────────────
 class AgentState(TypedDict, total=False):
     messages:       Annotated[List[BaseMessage], add_messages]
-    summary:        str   # resumen comprimido de la conversación (tras 10 turnos)
-    route:          str   # "data" | "general"
-    enhanced_query: str   # instrucción técnica para el agente Pandas
-    data_analysis:  str   # resultado textual del agente Pandas
-
-
-# ─────────────────────────────────────────────────────────────
-# Nodes
-# ─────────────────────────────────────────────────────────────
+    summary:        str   
+    route:          str   
+    enhanced_query: str   
+    data_analysis:  str 
 
 def router_node(state: AgentState) -> dict:
     """
@@ -82,15 +74,12 @@ def semantic_mapper_node(state: AgentState) -> dict:
     prompt = SEMANTIC_MAPPER_PROMPT.format(schema=schema, user_query=last_msg)
     resp = llm.invoke([SystemMessage(content=prompt)])
     
-    # Intentar parsear el JSON del plan de análisis
     raw = resp.content.strip()
-    # Limpiar posibles bloques de código markdown
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     
     try:
         plan = json.loads(raw)
-        # Construir instrucción estructurada a partir del plan
         dataset_name = "df1" if plan.get("dataset") == "df1" else "df2"
         instruction_parts = []
         instruction_parts.append(f"PLAN DE ANÁLISIS:")
@@ -117,7 +106,6 @@ def semantic_mapper_node(state: AgentState) -> dict:
         
         enhanced = "\n".join(instruction_parts)
     except (json.JSONDecodeError, KeyError):
-        # Fallback: usar la respuesta como texto libre
         enhanced = raw
     
     return {"enhanced_query": enhanced}
@@ -182,6 +170,7 @@ def responder_node(state: AgentState) -> dict:
         resp = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=last_msg)])
         return {"messages": [AIMessage(content=resp.content)]}
 
+    analysis = state.get("data_analysis", "Sin resultados.")
     system_content = RESPONSE_FORMATTER_PROMPT.format(analysis_result=analysis)
     llm_messages = [
         SystemMessage(content=system_content + "\n\n" + METRICS_CONTEXT),
@@ -198,10 +187,6 @@ def summarizer_node(state: AgentState) -> dict:
     return {"summary": resp.content}
 
 
-# ─────────────────────────────────────────────────────────────
-# Routing functions
-# ─────────────────────────────────────────────────────────────
-
 def _route_decision(state: AgentState) -> str:
     return "general" if state.get("route") == "general" else "data"
 
@@ -210,9 +195,6 @@ def _should_summarize(state: AgentState) -> str:
     return "summarize" if len(state.get("messages", [])) >= 10 else "end"
 
 
-# ─────────────────────────────────────────────────────────────
-# Graph
-# ─────────────────────────────────────────────────────────────
 workflow = StateGraph(AgentState)
 
 workflow.add_node("router",          router_node)

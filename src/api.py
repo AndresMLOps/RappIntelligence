@@ -1,4 +1,4 @@
-# scr/api.py
+# src/api.py
 import asyncio
 import json
 from pathlib import Path
@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from scr.agent import ask, ask_stream, reset_conversation
+from src.bot.agent import ask, ask_stream, reset_conversation
 
 ROOT = Path(__file__).parent.parent.resolve()
 
@@ -64,7 +64,7 @@ async def chat_stream(request: ChatRequest):
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",  # deshabilita buffering en Nginx si lo hay
+            "X-Accel-Buffering": "no", 
         },
     )
 

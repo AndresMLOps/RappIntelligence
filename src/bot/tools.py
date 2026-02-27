@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 from langchain.tools import tool
 
-ROOT = Path(os.environ.get("RAPP_ROOT", Path(__file__).parent.parent)).resolve()
+ROOT = Path(os.environ.get("RAPP_ROOT", Path(__file__).parent.parent.parent)).resolve()
 DATA_DIR = ROOT / "data"
 
 
@@ -32,11 +32,9 @@ def get_data_schema() -> str:
             continue
         df = pd.read_csv(fpath)
         
-        # Identificar columnas categóricas y sus valores únicos
         categorical_values = {}
         for col in df.select_dtypes(include=["object"]).columns:
             unique_vals = sorted(df[col].dropna().unique().tolist())
-            # Limitar a 50 valores para no sobrecargar el prompt
             if len(unique_vals) <= 50:
                 categorical_values[col] = unique_vals
             else:
